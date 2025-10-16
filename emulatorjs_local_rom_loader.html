@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>EmulatorJS – Play Game Boy ROM</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-family: sans-serif;
+    }
+    #game {
+      width: 640px;
+      height: 576px;
+      border: 2px solid #555;
+      background: #000;
+    }
+    #loader {
+      margin: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Load Your Game Boy ROM</h2>
+  <input type="file" id="loader" accept=".gb,.gbc,.gba" />
+  <div id="game"></div>
+
+  <script src="https://cdn.emulatorjs.org/loader.js"></script>
+  <script>
+    const input = document.getElementById('loader');
+    input.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      const blobURL = URL.createObjectURL(file);
+      EJS_player = "#game";
+      if (file.name.endsWith('.gbc')) EJS_core = "gbc";
+      else if (file.name.endsWith('.gba')) EJS_core = "gba";
+      else EJS_core = "gb";
+      EJS_gameUrl = blobURL;
+      EJS_startOnLoaded = true;
+      EJS_fullscreenOnLoaded = false;
+      const script = document.createElement('script');
+      script.src = "https://cdn.emulatorjs.org/loader.js";
+      document.body.appendChild(script);
+    });
+  </script>
+</body>
+</html>
