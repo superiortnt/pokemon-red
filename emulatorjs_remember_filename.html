@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>EmulatorJS – Local ROM loader (remembers filename)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{--bg:#070707;--panel:#0f1720;--muted:#9aa4b2;--accent:#8be9fd}
+    html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;background:var(--bg);color:#e6eef6;display:flex;flex-direction:column;align-items:center;justify-content:center}
+    .wrap{width:100%;max-width:900px;padding:18px;box-sizing:border-box;display:flex;gap:18px;flex-direction:column;align-items:center}
+    #game{width:640px;height:576px;background:#000;border:2px solid #222;display:block}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+    button{background:#0b1220;border:1px solid #1f2937;color:var(--accent);padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+    .muted{color:var(--muted);font-size:13px}
+    .note{color:var(--muted);font-size:13px;text-align:center}
+    .hidden{display:none}
+    input[type=file]{display:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h2 style="margin:0">EmulatorJS — Local ROM loader</h2>
+    <p class="note">This page remembers the <strong>exact filename</strong> of the last ROM you selected. For privacy, ROM data never leaves your computer.</p>
+    <div class="controls" id="topcontrols">
+      <label>
+        <input id="fileinput" type="file" accept=".gb,.gbc,.gba" />
+        <button id="chooseBtn">Choose ROM</button>
+      </label>
+      <button id="loadLastBtn" class="hidden">Load last ROM</button>
+      <button id="clearBtn">Forget last filename</button>
+    </div>
+
+    <div id="status" class="muted">No ROM loaded</div>
+    <div id="game"></div>
+
+    <p class="note">Tip: If you use the same browser on the same device and don't clear site data, in-game saves will be kept automatically.</p>
+  </div>
+
+  <script src="https://cdn.emulatorjs.org/loader.js"></script>
+  <script>
+    // Elements
+    const fileInput = document.getElementById('fileinput');
+    const chooseBtn = document.getElementById('chooseBtn');
+    const loadLastBtn = document.getElementById('loadLastBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const status = document.getElementById('status');
+    const gameEl = document.getElementById('game');
+
+    const STORAGE_KEY = 'emulator_last_filename_v1';
+
+    // Helper: initialize emulator with a blob URL
+    function startEmulatorWithURL(url, filename) {
+      // Clear existing iframe or canvas if necessary by reloading loader with new config
+      // Set global EJS_ variables expected by loader.js
+      window.EJS_player = "#game";
+      if (filename && filename.toLowerCase().endsWith('.gbc')) window.EJS_core = "gbc";
+      else if (filename && filename.toLowerCase().endsWith('.gba')) window.EJS_core = "gba";
+      else window.EJS_core = "gb";
+      window.EJS_gameUrl = url;
+      window.EJS_startOnLoaded = true;
+
+      status.textContent = "Loaded: " + filename;
+      // If loader.js already instantiated an emulator, re-initialization may vary by build.
+      // To handle repeated loads, we remove and re-add the loader script to trigger initialization.
+      // Remove any existing emulator canvas inside #game
+      while (gameEl.firstChild) gameEl.removeChild(gameEl.firstChild);
+
+      // Re-append loader script to (re)start emulator with new globals.
+      const existing = document.getElementById('ejs-loader');
+      if (existing) existing.remove();
+      const s = document.createElement('script');
+      s.id = 'ejs-loader';
+      s.src = 'https://cdn.emulatorjs.org/loader.js';
+      document.body.appendChild(s);
+    }
+
+    // When a file is chosen
+    fileInput.addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      // Save exact filename to localStorage
+      try {
+        localStorage.setItem(STORAGE_KEY, f.name);
+      } catch (err) {
+        console.warn('Could not save filename to localStorage', err);
+      }
+      updateUI();
+      const blobURL = URL.createObjectURL(f);
+      startEmulatorWithURL(blobURL, f.name);
+    });
+
+    // Choose button triggers file input
+    chooseBtn.addEventListener('click', () => fileInput.click());
+
+    // Load last: prompts file picker but shows expected filename
+    loadLastBtn.addEventListener('click', async () => {
+      const expected = localStorage.getItem(STORAGE_KEY);
+      if (!expected) return alert('No saved filename found.');
+      // Prompt user to re-select the file; browser security prevents auto-opening a filesystem file
+      alert('Please select the file named: ' + expected + '\n\nNote: the browser cannot access files automatically for security reasons. You will need to locate it and pick it in the file dialog.');
+      fileInput.click();
+    });
+
+    // Clear stored filename
+    clearBtn.addEventListener('click', () => {
+      localStorage.removeItem(STORAGE_KEY);
+      updateUI();
+      status.textContent = 'Forgot last filename.';
+    });
+
+    // UI update
+    function updateUI() {
+      const last = localStorage.getItem(STORAGE_KEY);
+      if (last) {
+        loadLastBtn.classList.remove('hidden');
+        loadLastBtn.textContent = 'Load last ROM: ' + last;
+      } else {
+        loadLastBtn.classList.add('hidden');
+      }
+    }
+
+    // Initialize
+    updateUI();
+
+    // Optional: if you want to auto-open the last-ROM picker when the page loads (commented out):
+    // window.addEventListener('load', () => { if (localStorage.getItem(STORAGE_KEY)) fileInput.click(); });
+
+    // Note for user: In-game battery saves and emulator save states are stored in IndexedDB / localStorage by the emulator.
+    // To back them up manually, you can export the data using your browser's developer tools (IndexedDB) or use the emulator's UI.
+  </script>
+</body>
+</html>
